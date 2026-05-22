@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>考研陪伴 · MPAcc</title>
+<style>
+/* ===== THEME ===== */
+:root {
+  --bg: #f5f5f7; --bg2: #fff; --bg3: #e5e5e7;
+  --border: #d1d1d6; --text: #1d1d1f; --text2: #86868b; --text3: #aeaeb2;
+  --accent: #0071e3; --accent2: #e8f4fd;
+  --success: #34c759; --warning: #ff9f0a; --error: #ff3b30;
+  --pink: #f093fb; --purple: #764ba2; --blue: #4facfe; --gold: #f6d365;
+  --radius: 12px; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+@media (prefers-color-scheme:dark) {
+  :root {
+    --bg: #1d1d1f; --bg2: #2d2d2f; --bg3: #3d3d3f;
+    --border: #424245; --text: #f5f5f7; --text2: #86868b; --text3: #636366;
+    --accent: #0a84ff; --accent2: rgba(10,132,255,0.15);
+    --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; overflow:hidden; }
+body {
+  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background: var(--bg); color: var(--text);
+  display:flex; flex-direction:column;
+  -webkit-tap-highlight-color: transparent;
+}
+/* ===== PAGES ===== */
+#app { flex:1; overflow:hidden; position:relative; }
+.page {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  overflow-y:auto; overflow-x:hidden;
+  padding: 1.5rem 1.25rem 5rem;
+  opacity:0; transform:translateY(10px);
+  transition:opacity .25s,transform .25s;
+  pointer-events:none;
+}
+.page.active { opacity:1; transform:translateY(0); pointer-events:auto; }
+.page h2 { font-size:1.5rem; font-weight:700; margin-bottom:0.25rem; }
+.page .sub { color:var(--text2); font-size:0.85rem; margin-bottom:1rem; }
+
+/* ===== BOTTOM NAV ===== */
+nav {
+  display:flex; background:var(--bg2); border-top:1px solid var(--border);
+  padding:0.5rem 0 env(safe-area-inset-bottom);
+  flex-shrink:0; z-index:10;
+}
+nav .tab {
+  flex:1; text-align:center; padding:0.4rem 0;
+  font-size:0.7rem; color:var(--text2); cursor:pointer;
+  transition:color .15s; user-select:none;
+}
+nav .tab.active { color:var(--accent); font-weight:600; }
+nav .tab .ico { font-size:1.4rem; display:block; margin-bottom:2px; }
+
+/* ===== COMPONENTS ===== */
+.card {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--radius); padding:1rem; margin-bottom:1rem;
+}
+.btn {
+  display:inline-block; padding:0.5rem 1.25rem; border-radius:8px;
+  font-size:0.85rem; font-weight:600; cursor:pointer; border:none;
+  background:var(--accent); color:#fff; transition:opacity .15s;
+}
+.btn:hover { opacity:0.85; }
+.btn-sm { padding:0.35rem 0.85rem; font-size:0.78rem; }
+.btn-outline { background:transparent; border:2px solid var(--border); color:var(--text); }
+.btn-danger { background:var(--error); }
+
+.task-item {
+  display:flex; align-items:center; gap:0.75rem;
+  background:var(--bg); border-radius:10px; padding:0.85rem 1rem;
+  margin-bottom:0.6rem; position:relative;
+  border-left:4px solid var(--accent);
+  transition:opacity .3s;
+}
+.task-item.done { opacity:0.5; border-left-color:var(--success); }
+.task-item .check {
+  width:24px; height:24px; border:2px solid var(--border);
+  border-radius:6px; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; cursor:pointer; font-size:0.7rem; color:var(--text3);
+}
+.task-item.done .check { background:var(--success); border-color:var(--success); color:#fff; }
+.task-item .info { flex:1; }
+.task-item .info strong { font-size:0.9rem; display:block; }
+.task-item .info span { color:var(--text2); font-size:0.75rem; }
+.task-item .actions {
+  display:flex; gap:0.4rem; align-items:center;
+}
+.task-item .actions span { cursor:pointer; font-size:0.85rem; }
+.task-item .actions .edit { color:var(--text2); }
+.task-item .actions .del { color:var(--error); }
+
+/* greeting */
+.greet { margin-bottom:1.25rem; }
+.greet .top { display:flex; justify-content:space-between; align-items:flex-start; }
+.greet h1 { font-size:1.6rem; font-weight:700; }
+.greet .countdown {
+  text-align:center; background:var(--bg3); border-radius:16px;
+  padding:0.6rem 1rem; min-width:70px;
+}
+.greet .countdown .num { font-size:2.2rem; font-weight:800; color:var(--accent); line-height:1; }
+.greet .countdown .unit { font-size:0.65rem; color:var(--text2); }
+.greet .msg {
+  background:linear-gradient(135deg,rgba(240,147,251,0.12),rgba(245,87,108,0.08));
+  border-radius:8px; padding:0.75rem 1rem; font-style:italic;
+  color:var(--text2); font-size:0.85rem; margin-top:0.75rem;
+}
+.greet .msg .author { font-size:0.7rem; color:var(--text3); display:block; margin-top:0.25rem; }
+
+/* points bar */
+.pts-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--radius); padding:0.85rem 1rem; margin-bottom:1rem;
+}
+.pts-bar .pts { display:flex; align-items:center; gap:0.4rem; }
+.pts-bar .pts .n { font-weight:700; font-size:1.2rem; }
+.pts-bar .pts .l { color:var(--text2); font-size:0.7rem; }
+.pts-bar .streak { text-align:right; }
+.pts-bar .streak .v { font-weight:700; color:var(--success); }
+
+/* store item */
+.store-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:0.75rem; }
+.store-item {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--radius); padding:1rem; text-align:center;
+  display:flex; flex-direction:column; gap:0.4rem;
+}
+.store-item .emoji { font-size:2rem; }
+.store-item h3 { font-size:0.9rem; }
+.store-item .desc { color:var(--text2); font-size:0.75rem; }
+.store-item .cost { font-weight:700; font-size:1rem; }
+.store-item .cost small { color:var(--text2); font-weight:400; }
+
+/* secret msg */
+.secret-item {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--radius); padding:1rem; display:flex; align-items:center;
+  gap:1rem; margin-bottom:0.6rem;
+}
+.secret-item.locked { opacity:0.55; }
+.secret-item .ico { font-size:2rem; flex-shrink:0; }
+.secret-item .body { flex:1; }
+.secret-item .body strong { font-size:0.9rem; }
+.secret-item .body p { color:var(--text2); font-size:0.8rem; margin:0.15rem 0; }
+.secret-item .body .hint { font-size:0.72rem; color:var(--text3); }
+
+/* timer */
+.timer-screen {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background:var(--bg); z-index:20; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.timer-screen.on { opacity:1; pointer-events:auto; }
+.timer-screen .subject { color:var(--text2); font-size:0.85rem; margin-bottom:1rem; }
+.timer-screen .clock {
+  font-size:6rem; font-weight:200; letter-spacing:0.04em;
+  font-variant-numeric:tabular-nums; margin-bottom:0.5rem;
+}
+.timer-screen .progress-bar {
+  width:60%; max-width:300px; height:6px; background:var(--bg3);
+  border-radius:3px; overflow:hidden; margin-bottom:2rem;
+}
+.timer-screen .progress-bar .fill {
+  height:100%; background:var(--accent); border-radius:3px; transition:width .5s linear;
+}
+.timer-screen .btns { display:flex; gap:1rem; }
+.timer-screen .summary { font-size:0.78rem; color:var(--text2); margin-top:1.5rem; }
+
+/* data */
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin-bottom:1rem; }
+.stat-card { background:var(--bg); border-radius:10px; padding:0.75rem; text-align:center; }
+.stat-card .v { font-size:1.6rem; font-weight:700; }
+.stat-card .l { font-size:0.7rem; color:var(--text2); }
+.bar-row { margin-bottom:0.6rem; }
+.bar-row .label { display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:0.2rem; }
+.bar-row .bar {
+  height:8px; background:var(--bg3); border-radius:4px; overflow:hidden;
+}
+.bar-row .bar .fill { height:100%; border-radius:4px; }
+.calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; text-align:center; }
+.calendar .dayh { color:var(--text3); font-size:0.62rem; padding:2px; font-weight:500; }
+.calendar .day {
+  aspect-ratio:1; border-radius:5px; font-size:0.7rem;
+  display:flex; align-items:center; justify-content:center;
+  cursor:default; position:relative; transition:transform .12s;
+  color:var(--text3);
+}
+.calendar .day:hover { transform:scale(1.2); z-index:2; }
+.calendar .day.l0 { background:var(--bg3); }
+.calendar .day.l1 { background:#a5d6a7; color:rgba(0,0,0,0.6); }
+.calendar .day.l2 { background:#66bb6a; color:#fff; }
+.calendar .day.l3 { background:#43a047; color:#fff; }
+.calendar .day.l4 { background:#1b5e20; color:#fff; font-weight:700; }
+.calendar .day.today { box-shadow:0 0 0 2px var(--accent); color:var(--text); font-weight:700; }
+.calendar .day.empty { background:transparent; }
+.calendar .day .tooltip {
+  display:none; position:absolute; bottom:120%; left:50%; transform:translateX(-50%);
+  background:var(--text); color:var(--bg); font-size:0.65rem; padding:3px 8px;
+  border-radius:4px; white-space:nowrap; z-index:5;
+}
+.calendar .day:hover .tooltip { display:block; }
+.cal-month-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; }
+.cal-month-nav button {
+  background:none; border:none; font-size:1.2rem; cursor:pointer;
+  color:var(--text2); padding:0.25rem 0.5rem;
+}
+.cal-month-nav .month-label { font-weight:600; font-size:0.9rem; }
+.cal-legend { display:flex; align-items:center; gap:0.4rem; margin-top:0.6rem; font-size:0.65rem; color:var(--text3); }
+.cal-legend .dot { width:12px; height:12px; border-radius:3px; }
+@media (prefers-color-scheme:dark) {
+  .calendar .day.l1 { background:rgba(102,187,106,0.35); color:#fff; }
+  .calendar .day.l2 { background:rgba(102,187,106,0.55); color:#fff; }
+  .calendar .day.l3 { background:rgba(76,175,80,0.65); color:#fff; }
+  .calendar .day.l4 { background:#66bb6a; color:#fff; font-weight:700; }
+}
+
+/* admin */
+.admin-overlay {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background:var(--bg); z-index:30; overflow-y:auto; padding:1.5rem 1.25rem;
+  opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.admin-overlay.on { opacity:1; pointer-events:auto; }
+.admin-overlay h2 { margin-bottom:1rem; }
+.form-group { margin-bottom:0.75rem; }
+.form-group label { display:block; font-size:0.8rem; color:var(--text2); margin-bottom:0.25rem; }
+.form-group input,.form-group textarea,.form-group select {
+  width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:8px;
+  font-size:0.9rem; background:var(--bg2); color:var(--text);
+  font-family:inherit;
+}
+.form-group textarea { min-height:60px; resize:vertical; }
+
+/* modal */
+.modal {
+  position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.5); z-index:50;
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.modal.on { opacity:1; pointer-events:auto; }
+.modal .box {
+  background:var(--bg2); border-radius:var(--radius);
+  padding:1.5rem; max-width:360px; width:90%; box-shadow:var(--shadow);
+}
+.modal .box h3 { margin-bottom:0.75rem; }
+
+/* animations */
+@keyframes floatUp {
+  0% { opacity:1; transform:translateY(0); }
+  100% { opacity:0; transform:translateY(-60px); }
+}
+.float-pts {
+  position:fixed; top:40%; left:50%; z-index:100;
+  font-size:2rem; font-weight:800; color:var(--accent);
+  animation:floatUp 1.5s ease-out forwards; pointer-events:none;
+}
+@keyframes stamp {
+  0% { transform:scale(2) rotate(-15deg); opacity:0; }
+  100% { transform:scale(1) rotate(0); opacity:1; }
+}
+.stamp-anim {
+  animation:stamp 0.5s ease-out forwards;
+  font-size:3rem; text-align:center; margin:1rem 0;
+}
+
+/* check-in */
+.checkin-card {
+  background:var(--bg2); border:2px dashed var(--border);
+  border-radius:var(--radius); padding:0.85rem 1rem;
+  margin-bottom:1rem; cursor:pointer;
+  transition:all .25s; user-select:none;
+}
+.checkin-card:hover { border-color:var(--accent); background:var(--accent2); }
+.checkin-card .checkin-inner {
+  display:flex; align-items:center; gap:0.75rem;
+}
+.checkin-card.checked {
+  border-style:solid; border-color:var(--success);
+  background:rgba(52,199,89,0.08); cursor:default;
+}
+.checkin-card.checked .checkin-inner { opacity:0.8; }
+@keyframes checkPop {
+  0% { transform:scale(1); }
+  50% { transform:scale(1.05); }
+  100% { transform:scale(1); }
+}
+.checkin-card.popping { animation:checkPop 0.4s ease; }
+.admin-fab {
+  position:fixed; bottom:5rem; right:1rem; z-index:15;
+  width:44px; height:44px; border-radius:50%; background:var(--bg3);
+  border:1px solid var(--border); font-size:1.2rem;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; opacity:0.6; transition:opacity .2s;
+}
+.admin-fab:hover { opacity:1; }
+
+@media (max-width:400px) {
+  .page { padding:1rem 1rem 5rem; }
+  .greet h1 { font-size:1.3rem; }
+  .timer-screen .clock { font-size:4rem; }
+  .store-grid { grid-template-columns:repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+<!-- ====== PAGE 0:  TODAY ====== -->
+<div class="page active" id="page-today">
+  <div class="greet">
+    <div class="top">
+      <div>
+        <h1 id="greeting-text">早安，老婆 ☀️</h1>
+        <div style="color:var(--text2);font-size:0.8rem;" id="date-text"></div>
+      </div>
+      <div class="countdown" id="countdown-box">
+        <div class="num" id="cd-num">--</div>
+        <div class="unit">天</div>
+      </div>
+    </div>
+    <div class="msg" id="daily-msg">
+      <span id="msg-content">今天的你，比昨天又多学了一天。慢慢来，我在呢。</span>
+      <span class="author" id="msg-author">— 他今天想对你说的</span>
+    </div>
+  </div>
+
+  <!-- daily check-in -->
+  <div class="checkin-card" id="checkin-card" onclick="doCheckin()">
+    <div class="checkin-inner" id="checkin-inner">
+      <span style="font-size:1.8rem;">📝</span>
+      <div>
+        <strong>今日打卡签到</strong>
+        <span style="display:block;color:var(--text2);font-size:0.78rem;">点这里，标记今天的努力 ✨</span>
+      </div>
+      <span style="font-size:1.5rem;color:var(--text3);">→</span>
+    </div>
+  </div>
+
+  <div class="pts-bar" onclick="switchPage('store')">
+    <div class="pts">
+      <span style="font-size:1.5rem;">⭐</span>
+      <div>
+        <div class="n" id="pts-display">0</div>
+        <div class="l">积分（1分钟=1积分）</div>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div class="l">连续打卡</div>
+      <div class="streak"><span style="font-size:1.1rem;">🔥</span> <span class="v" id="streak-display">0</span> 天</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:8px;padding:0.4rem 0.6rem;font-size:0.8rem;cursor:pointer;">🎁 商城 →</div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+    <h2 style="margin:0;font-size:1.1rem;">今日任务</h2>
+    <button class="btn btn-sm btn-outline" onclick="addTask()">+ 添加</button>
+  </div>
+  <div id="task-list"></div>
+  <div style="text-align:center;margin-top:0.5rem;">
+    <button class="btn btn-sm btn-outline" onclick="copyYesterday()" style="font-size:0.72rem;">📋 复制昨天的任务</button>
+  </div>
+  <div id="stamp-area"></div>
+</div>
+
+<!-- ====== PAGE 1: DATA ====== -->
+<div class="page" id="page-data">
+  <h2>📊 学习数据</h2>
+  <p class="sub">偶尔翻翻，看看自己多厉害</p>
+  <div class="stat-grid" id="stat-grid"></div>
+  <div class="card">
+    <div style="font-size:0.8rem;color:var(--text2);margin-bottom:0.75rem;">本周各科时间分布</div>
+    <div id="subject-bars"></div>
+  </div>
+  <div class="card">
+    <div class="cal-month-nav">
+      <button onclick="prevMonth()">◀</button>
+      <span class="month-label" id="cal-month-label"></span>
+      <button onclick="nextMonth()">▶</button>
+    </div>
+    <div class="calendar" id="calendar"></div>
+    <div class="cal-legend">
+      <span>少</span>
+      <span class="dot" style="background:var(--bg3)"></span>
+      <span class="dot" style="background:#a5d6a7"></span>
+      <span class="dot" style="background:#66bb6a"></span>
+      <span class="dot" style="background:#43a047"></span>
+      <span class="dot" style="background:#1b5e20"></span>
+      <span>多</span>
+      <span style="margin-left:0.5rem;">🔵 今天</span>
+    </div>
+  </div>
+</div>
+
+<!-- ====== PAGE 2: STORE ====== -->
+<div class="page" id="page-store">
+  <h2>🎁 积分商城</h2>
+  <p class="sub">攒够了来兑奖 ✨</p>
+  <div class="pts-bar">
+    <div class="pts"><span style="font-size:1.5rem;">⭐</span><div><div class="n" id="pts-display2">0</div><div class="l">可用积分</div></div></div>
+  </div>
+  <div class="store-grid" id="store-grid"></div>
+  <div style="margin-top:1.5rem;">
+    <div style="font-size:0.85rem;color:var(--text2);margin-bottom:0.5rem;">兑换记录</div>
+    <div id="redeem-log" style="font-size:0.8rem;color:var(--text2);"></div>
+  </div>
+</div>
+
+<!-- ====== PAGE 3: SECRETS ====== -->
+<div class="page" id="page-secrets">
+  <h2>💌 悄悄话</h2>
+  <p class="sub">解锁越多，离我越近</p>
+  <div id="secret-list"></div>
+</div>
+
+<!-- ====== TIMER OVERLAY ====== -->
+<div class="timer-screen" id="timer-screen">
+  <div style="position:absolute;top:1rem;left:1rem;cursor:pointer;font-size:1.2rem;" onclick="closeTimer()">✕</div>
+  <div class="subject" id="timer-subject">英语二 · 阅读理解</div>
+  <div class="clock" id="timer-clock">25:00</div>
+  <div class="progress-bar"><div class="fill" id="timer-progress" style="width:0%"></div></div>
+  <div class="btns">
+    <button class="btn btn-danger" id="btn-pause" onclick="toggleTimer()">⏸ 暂停</button>
+    <button class="btn" style="background:var(--text2);" onclick="stopTimer()">⏹ 结束</button>
+  </div>
+  <div class="summary">
+    已学 <strong id="timer-elapsed">0</strong> 分钟 · 预计 <strong id="timer-pts">+0</strong> 积分
+    <div style="margin-top:0.5rem;">
+      <button class="btn btn-sm btn-outline" onclick="switchMode()" id="btn-mode">切换自由模式</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== ADMIN OVERLAY ====== -->
+<div class="admin-overlay" id="admin-overlay">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <h2 style="margin:0;">⚙ 管理员面板</h2>
+    <span style="cursor:pointer;font-size:1.5rem;" onclick="closeAdmin()">✕</span>
+  </div>
+
+  <div style="margin-bottom:1.5rem;">
+    <strong style="font-size:0.9rem;">🎁 奖品管理</strong>
+    <div id="admin-prizes" style="margin-top:0.5rem;"></div>
+    <button class="btn btn-sm btn-outline" onclick="addPrize()" style="margin-top:0.5rem;">+ 添加奖品</button>
+  </div>
+
+  <div style="margin-bottom:1.5rem;">
+    <strong style="font-size:0.9rem;">💌 悄悄话管理</strong>
+    <div id="admin-secrets" style="margin-top:0.5rem;"></div>
+    <button class="btn btn-sm btn-outline" onclick="addSecret()" style="margin-top:0.5rem;">+ 添加悄悄话</button>
+  </div>
+
+  <div style="margin-bottom:1.5rem;">
+    <strong style="font-size:0.9rem;">🌅 问候语管理</strong>
+    <div id="admin-greetings" style="margin-top:0.5rem;"></div>
+    <button class="btn btn-sm btn-outline" onclick="addGreeting()" style="margin-top:0.5rem;">+ 添加问候语</button>
+  </div>
+
+  <div style="margin-bottom:1.5rem;">
+    <strong style="font-size:0.9rem;">📋 兑换审批</strong>
+    <div id="admin-redeems" style="margin-top:0.5rem;font-size:0.8rem;color:var(--text2);"></div>
+  </div>
+
+  <div style="margin-bottom:1rem;">
+    <strong style="font-size:0.9rem;">📅 考试日期</strong>
+    <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
+      <input type="date" id="exam-date-input" class="form-group" style="flex:1;">
+      <button class="btn btn-sm" onclick="saveExamDate()">保存</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<!-- ====== MODALS ====== -->
+<div class="modal" id="modal">
+  <div class="box" id="modal-box"></div>
+</div>
+
+<div class="modal" id="prize-modal">
+  <div class="box" id="prize-modal-box"></div>
+</div>
+
+<div class="admin-fab" id="admin-fab" title="管理员" onclick="openAdmin()">⚙</div>
+
+<!-- ====== BOTTOM NAV ====== -->
+<nav>
+  <div class="tab active" data-page="today" onclick="switchPage('today')">
+    <span class="ico">🏠</span>今日
+  </div>
+  <div class="tab" data-page="data" onclick="switchPage('data')">
+    <span class="ico">📊</span>数据
+  </div>
+  <div class="tab" data-page="store" onclick="switchPage('store')">
+    <span class="ico">🎁</span>商城
+  </div>
+  <div class="tab" data-page="secrets" onclick="switchPage('secrets')">
+    <span class="ico">💌</span>悄悄话
+  </div>
+</nav>
+
+<script>
+// ====== DATA MODEL ======
+const LS = {
+  get(k,d) { try { const v=localStorage.getItem('kaoyan_'+k); return v?JSON.parse(v):d; } catch(e) { return d; } },
+  set(k,v) { localStorage.setItem('kaoyan_'+k, JSON.stringify(v)); }
+};
+
+// Defaults
+const DEFAULT_PRIZES = [
+  {id:1,emoji:'🧋',name:'一杯奶茶',desc:'你请的奶茶最甜',cost:300},
+  {id:2,emoji:'🎬',name:'一场电影',desc:'任选一部，我陪你看',cost:800},
+  {id:3,emoji:'🍲',name:'一顿火锅',desc:'你说了算的火锅局',cost:1500},
+  {id:4,emoji:'💆',name:'一次按摩',desc:'放松一下辛苦了',cost:500},
+  {id:5,emoji:'🎁',name:'神秘礼物',desc:'攒到2000就知道了',cost:2000},
+];
+const DEFAULT_SECRETS = [
+  {id:1,cond:'打卡第1天',condType:'streak',condVal:1,text:'老婆，第一天就开始了，你已经比大多数人厉害了。路上风景很好，慢慢走。',media:''},
+  {id:2,cond:'连续打卡7天',condType:'streak',condVal:7,text:'一周了！说真的我有点佩服你。这张照片是上次去的时候拍的，想你了。',media:'📷'},
+  {id:3,cond:'连续打卡30天',condType:'streak',condVal:30,text:'一个月了老婆！你已经养成了习惯，剩下的路我陪你走。爱你。',media:''},
+  {id:4,cond:'累计3000积分',condType:'points',condVal:3000,text:'听到这段语音了吗？这是我专门录给你的。3000积分可不是小数目，你真厉害。',media:'🎵'},
+  {id:5,cond:'倒计时100天',condType:'countdown',condVal:100,text:'最后100天了老婆。这段时间辛苦了，但我知道你能行。考完那天，我去接你。',media:''},
+];
+const DEFAULT_GREETINGS = [
+  {id:1,text:'今天的你，比昨天又多学了一天。慢慢来，我在呢。',author:'他今天想对你说的'},
+  {id:2,text:'老婆，又是新的一天。不管昨天怎么样，今天重新开始。',author:'他今天想对你说的'},
+  {id:3,text:'早啊老婆。今天天气挺好的，适合学习。',author:'他今天想对你说的'},
+  {id:4,text:'你知道吗，每天睁开眼睛第一个想到的就是你。加油。',author:'他今天想对你说的'},
+  {id:5,text:'今天的你可能也会累，会想放弃。但记住，你已经坚持这么久了。',author:'他今天想对你说的'},
+  {id:6,text:'老婆早安！今天也要开心呀～学习累了就歇歇，别硬撑。',author:'他今天想对你说的'},
+  {id:7,text:'每天打开这个页面就知道你在努力。我为你骄傲。',author:'他今天想对你说的'},
+  {id:8,text:'就算今天只学了10分钟，也比0分钟厉害。重要的是你动了。',author:'他今天想对你说的'},
+  {id:9,text:'早！今天有没有特别难的科目要攻克？我相信你可以的。',author:'他今天想对你说的'},
+  {id:10,text:'老婆，考研这条路上你不孤单。有我在。',author:'他今天想对你说的'},
+];
+
+// State
+let state = {
+  points: LS.get('points',0),
+  totalMinutes: LS.get('totalMinutes',0),
+  totalTomatoes: LS.get('totalTomatoes',0),
+  streak: LS.get('streak',0),
+  lastActiveDate: LS.get('lastActiveDate',''),
+  tasks: LS.get('tasks',[]),
+  prizes: LS.get('prizes',[...DEFAULT_PRIZES]),
+  secrets: LS.get('secrets',[...DEFAULT_SECRETS]),
+  greetings: LS.get('greetings',[...DEFAULT_GREETINGS]),
+  redeemLog: LS.get('redeemLog',[]),
+  examDate: LS.get('examDate','2026-12-20'),
+  timerMinutes: {}, // {subject: totalMinutes}
+  dailyActivity: LS.get('dailyActivity',{}), // {'2026-05-22': 85}
+  calMonth: new Date().getMonth(),
+  calYear: new Date().getFullYear(),
+  checkedInDate: LS.get('checkedInDate',''), // '2026-05-22'
+};
+// Merge timerMinutes from old format
+let oldTM = LS.get('timerMinutes',{});
+state.timerMinutes = Object.keys(oldTM).length>0 ? oldTM : {};
+
+// Timer state
+let timerState = {running:false,remaining:25*60,total:25*60,pomodoro:true,subject:'',interval:null,elapsed:0};
+
+// ====== INIT ======
+function init() {
+  // Check today's streak
+  const today = new Date().toISOString().slice(0,10);
+  const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+  if (state.lastActiveDate === today) {
+    // already active today
+  } else if (state.lastActiveDate === yesterday) {
+    state.streak += 1;
+  } else {
+    state.streak = 1;
+  }
+  state.lastActiveDate = today;
+  saveState();
+
+  // Check if url has ?admin
+  if (window.location.search.includes('admin')) {
+    openAdmin();
+  }
+
+  renderAll();
+  updateCountdown();
+  setInterval(updateCountdown, 60000);
+
+  // Check midnight reset
+  checkMidnightReset();
+  setInterval(checkMidnightReset, 60000);
+}
+
+function saveState() {
+  LS.set('points',state.points);
+  LS.set('totalMinutes',state.totalMinutes);
+  LS.set('totalTomatoes',state.totalTomatoes);
+  LS.set('streak',state.streak);
+  LS.set('lastActiveDate',state.lastActiveDate);
+  LS.set('tasks',state.tasks);
+  LS.set('prizes',state.prizes);
+  LS.set('secrets',state.secrets);
+  LS.set('greetings',state.greetings);
+  LS.set('redeemLog',state.redeemLog);
+  LS.set('examDate',state.examDate);
+  LS.set('timerMinutes',state.timerMinutes);
+  LS.set('dailyActivity',state.dailyActivity);
+  LS.set('checkedInDate',state.checkedInDate);
+}
+
+let lastDate = new Date().toISOString().slice(0,10);
+function checkMidnightReset() {
+  const d = new Date().toISOString().slice(0,10);
+  if (d !== lastDate) {
+    // Save yesterday's tasks before resetting
+    LS.set('yesterdayTasks', state.tasks.map(t => ({...t})));
+    lastDate = d;
+    // Reset tasks for new day
+    state.tasks = state.tasks.map(t => ({...t, done:false}));
+    saveState();
+    renderToday();
+  }
+}
+
+// ====== COUNTDOWN ======
+function updateCountdown() {
+  const exam = new Date(state.examDate);
+  const now = new Date();
+  const diff = Math.ceil((exam - now) / 86400000);
+  const el = document.getElementById('cd-num');
+  if (el) el.textContent = diff > 0 ? diff : '0';
+}
+
+// ====== RENDER ======
+function renderAll() {
+  renderToday();
+  renderData();
+  renderStore();
+  renderSecrets();
+  updatePointsDisplay();
+}
+
+function updatePointsDisplay() {
+  document.getElementById('pts-display').textContent = state.points;
+  document.getElementById('pts-display2').textContent = state.points;
+  document.getElementById('streak-display').textContent = state.streak;
+}
+
+// ====== TODAY PAGE ======
+function renderToday() {
+  const today = new Date();
+  const days = ['日','一','二','三','四','五','六'];
+  document.getElementById('date-text').textContent =
+    `今天是 ${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日 · 周${days[today.getDay()]}`;
+
+  // Greeting based on time
+  const h = today.getHours();
+  let greet = '早安';
+  if (h >= 12 && h < 18) greet = '下午好';
+  if (h >= 18 || h < 5) greet = '晚安';
+  document.getElementById('greeting-text').textContent = greet + '，老婆 ☀️';
+
+  // Daily message
+  if (state.greetings.length > 0) {
+    const idx = today.getDate() % state.greetings.length;
+    const g = state.greetings[idx];
+    document.getElementById('msg-content').textContent = '「' + g.text + '」';
+    document.getElementById('msg-author').textContent = '— ' + (g.author || '他今天想对你说的');
+  }
+
+  // Tasks
+  const list = document.getElementById('task-list');
+  list.innerHTML = state.tasks.length === 0
+    ? '<div style="text-align:center;color:var(--text3);padding:2rem;">还没有任务，点「+ 添加」开始规划今天吧 ✨</div>'
+    : state.tasks.map((t,i) => `
+      <div class="task-item ${t.done?'done':''}" style="border-left-color:${t.color||'var(--accent)'};">
+        <div class="check" onclick="toggleTask(${i})">${t.done?'✓':'□'}</div>
+        <div class="info">
+          <strong>${esc(t.name)}</strong>
+          <span>目标：${t.minutes}分钟 · ≈${t.minutes} 积分</span>
+        </div>
+        ${t.done ? '' : `<button class="btn btn-sm" onclick="startTimer('${esc(t.name)}','${t.subject||''}')">开始</button>`}
+        <div class="actions" style="margin-left:0.5rem;">
+          <span class="edit" onclick="editTask(${i})">✎</span>
+          <span class="del" onclick="deleteTask(${i})">🗑</span>
+        </div>
+      </div>
+    `).join('');
+
+  renderCheckin();
+  updatePointsDisplay();
+}
+
+function renderCheckin() {
+  const card = document.getElementById('checkin-card');
+  if (!card) return;
+  const today = new Date().toISOString().slice(0,10);
+  if (state.checkedInDate === today) {
+    card.className = 'checkin-card checked';
+    card.onclick = null;
+    document.getElementById('checkin-inner').innerHTML = `
+      <span style="font-size:1.8rem;">✅</span>
+      <div>
+        <strong style="color:var(--success);">今日已打卡</strong>
+        <span style="display:block;color:var(--text2);font-size:0.78rem;">连续 ${state.streak} 天 🔥 明天继续加油</span>
+      </div>
+      <span style="font-size:1.2rem;">🔥</span>`;
+  } else {
+    card.className = 'checkin-card';
+    card.onclick = doCheckin;
+    document.getElementById('checkin-inner').innerHTML = `
+      <span style="font-size:1.8rem;">📝</span>
+      <div>
+        <strong>今日打卡签到</strong>
+        <span style="display:block;color:var(--text2);font-size:0.78rem;">点这里，标记今天的努力 ✨</span>
+      </div>
+      <span style="font-size:1.5rem;color:var(--text3);">→</span>`;
+  }
+}
+
+function doCheckin() {
+  const today = new Date().toISOString().slice(0,10);
+  if (state.checkedInDate === today) return;
+  state.checkedInDate = today;
+  // Record minimal activity so calendar lights up
+  if (!state.dailyActivity[today]) state.dailyActivity[today] = 1;
+  state.points += 5;
+  showFloatPts('+5 签到');
+  saveState();
+  updatePointsDisplay();
+  renderCheckin();
+}
+
+function esc(s) { return s.replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function toggleTask(i) {
+  state.tasks[i].done = !state.tasks[i].done;
+  saveState();
+  renderToday();
+  checkAllDone();
+}
+
+function checkAllDone() {
+  if (state.tasks.length > 0 && state.tasks.every(t => t.done)) {
+    const area = document.getElementById('stamp-area');
+    if (!area.querySelector('.stamp-anim')) {
+      state.points += 20;
+      saveState();
+      area.innerHTML = '<div class="stamp-anim">✅ 今日全部完成！<br><span style="font-size:1rem;">+20 额外积分</span></div>';
+      updatePointsDisplay();
+      showFloatPts('+20');
+      setTimeout(() => { area.innerHTML = ''; }, 3000);
+    }
+  }
+}
+
+function addTask() {
+  const html = `
+    <h3>添加任务</h3>
+    <div class="form-group"><label>科目</label>
+      <select id="nt-subject">
+        <option value="英语二">英语二</option><option value="初等数学">初等数学</option>
+        <option value="逻辑">逻辑</option><option value="写作">写作</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="form-group"><label>任务名称</label><input id="nt-name" placeholder="如：阅读理解2篇"></div>
+    <div class="form-group"><label>预计时长（分钟）</label><input id="nt-mins" type="number" value="45"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doAddTask()">添加</button>
+      <button class="btn btn-sm btn-outline" onclick="closeModal()">取消</button>
+    </div>`;
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal').classList.add('on');
+}
+
+function doAddTask() {
+  const subject = document.getElementById('nt-subject').value;
+  const name = document.getElementById('nt-name').value.trim();
+  const minutes = parseInt(document.getElementById('nt-mins').value)||45;
+  if (!name) return alert('请输入任务名称');
+  const colors = {'英语二':'var(--accent)','初等数学':'#764ba2','逻辑':'#4facfe','写作':'#f6d365'};
+  state.tasks.push({name:`${subject} · ${name}`,subject,minutes,done:false,color:colors[subject]||'var(--accent)'});
+  saveState();
+  closeModal();
+  renderToday();
+}
+
+function editTask(i) {
+  const t = state.tasks[i];
+  const html = `
+    <h3>编辑任务</h3>
+    <div class="form-group"><label>任务名称</label><input id="et-name" value="${esc(t.name)}"></div>
+    <div class="form-group"><label>预计时长（分钟）</label><input id="et-mins" type="number" value="${t.minutes}"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doEditTask(${i})">保存</button>
+      <button class="btn btn-sm btn-outline" onclick="closeModal()">取消</button>
+    </div>`;
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal').classList.add('on');
+}
+
+function doEditTask(i) {
+  state.tasks[i].name = document.getElementById('et-name').value.trim();
+  state.tasks[i].minutes = parseInt(document.getElementById('et-mins').value)||45;
+  if (!state.tasks[i].name) return alert('名称不能为空');
+  saveState();
+  closeModal();
+  renderToday();
+}
+
+function deleteTask(i) {
+  if (confirm('确定删除「'+state.tasks[i].name+'」？')) {
+    state.tasks.splice(i,1);
+    saveState();
+    renderToday();
+  }
+}
+
+function copyYesterday() {
+  const yesterday = LS.get('yesterdayTasks',[]);
+  if (yesterday.length === 0) return alert('没有昨天的任务记录');
+  state.tasks = yesterday.map(t => ({...t, done:false}));
+  saveState();
+  renderToday();
+}
+// ====== TIMER ======
+function startTimer(name, subject) {
+  timerState.subject = subject || name;
+  timerState.pomodoro = true;
+  timerState.total = 25 * 60;
+  timerState.remaining = 25 * 60;
+  timerState.elapsed = 0;
+  timerState.running = false;
+  document.getElementById('timer-subject').textContent = timerState.subject;
+  document.getElementById('timer-screen').classList.add('on');
+  document.getElementById('btn-mode').textContent = '切换自由模式';
+  updateTimerDisplay();
+}
+
+function closeTimer() {
+  if (timerState.running) {
+    if (!confirm('正在计时中，确定退出吗？已学时间仍会计算积分。')) return;
+  }
+  if (timerState.elapsed > 0) {
+    awardPoints(timerState.elapsed);
+  }
+  clearInterval(timerState.interval);
+  timerState.running = false;
+  document.getElementById('timer-screen').classList.remove('on');
+  renderToday();
+  renderData();
+}
+
+function toggleTimer() {
+  if (timerState.running) {
+    clearInterval(timerState.interval);
+    timerState.running = false;
+    document.getElementById('btn-pause').textContent = '▶ 继续';
+    document.getElementById('btn-pause').style.background = 'var(--success)';
+  } else {
+    timerState.running = true;
+    document.getElementById('btn-pause').textContent = '⏸ 暂停';
+    document.getElementById('btn-pause').style.background = 'var(--error)';
+    timerState.interval = setInterval(tick, 1000);
+  }
+}
+
+function stopTimer() {
+  if (!confirm('确定结束计时吗？已学时间会结算积分。')) return;
+  clearInterval(timerState.interval);
+  timerState.running = false;
+  if (timerState.elapsed > 0) {
+    awardPoints(timerState.elapsed);
+  }
+  document.getElementById('timer-screen').classList.remove('on');
+  renderToday();
+  renderData();
+}
+
+function tick() {
+  timerState.remaining--;
+  timerState.elapsed++;
+  if (timerState.remaining <= 0) {
+    // Pomodoro complete
+    clearInterval(timerState.interval);
+    timerState.running = false;
+    state.totalTomatoes++;
+    awardPoints(timerState.elapsed);
+    showFloatPts('+'+timerState.elapsed);
+    // Auto restart next pomodoro or stop
+    if (confirm('🍅 一个番茄完成！+'+timerState.elapsed+'积分。再来一个吗？')) {
+      timerState.remaining = 25 * 60;
+      timerState.elapsed = 0;
+      updateTimerDisplay();
+      timerState.running = true;
+      document.getElementById('btn-pause').textContent = '⏸ 暂停';
+      document.getElementById('btn-pause').style.background = 'var(--error)';
+      timerState.interval = setInterval(tick, 1000);
+    } else {
+      document.getElementById('timer-screen').classList.remove('on');
+      renderToday();
+      renderData();
+    }
+  }
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timerState.remaining / 60);
+  const s = timerState.remaining % 60;
+  document.getElementById('timer-clock').textContent = 
+    String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  const pct = timerState.total > 0 ? ((timerState.total - timerState.remaining) / timerState.total * 100) : 0;
+  document.getElementById('timer-progress').style.width = pct + '%';
+  document.getElementById('timer-elapsed').textContent = timerState.elapsed;
+  document.getElementById('timer-pts').textContent = '+' + timerState.elapsed;
+}
+
+function switchMode() {
+  if (timerState.running) {
+    clearInterval(timerState.interval);
+    timerState.running = false;
+  }
+  timerState.pomodoro = !timerState.pomodoro;
+  if (timerState.pomodoro) {
+    timerState.total = 25 * 60;
+    document.getElementById('btn-mode').textContent = '切换自由模式';
+  } else {
+    timerState.total = 9999 * 60; // essentially unlimited
+    document.getElementById('btn-mode').textContent = '切换番茄钟';
+  }
+  timerState.remaining = timerState.total;
+  timerState.elapsed = 0;
+  document.getElementById('btn-pause').textContent = '▶ 继续';
+  document.getElementById('btn-pause').style.background = 'var(--success)';
+  updateTimerDisplay();
+}
+
+function awardPoints(mins) {
+  state.points += mins;
+  state.totalMinutes += mins;
+  // Track per subject
+  if (timerState.subject) {
+    state.timerMinutes[timerState.subject] = (state.timerMinutes[timerState.subject]||0) + mins;
+  }
+  // Track daily activity for heatmap
+  const today = new Date().toISOString().slice(0,10);
+  state.dailyActivity[today] = (state.dailyActivity[today]||0) + mins;
+  // Mark matching task as done
+  const taskIdx = state.tasks.findIndex(t => t.subject === timerState.subject && !t.done);
+  if (taskIdx >= 0) state.tasks[taskIdx].done = true;
+  saveState();
+  updatePointsDisplay();
+}
+
+function showFloatPts(text) {
+  const el = document.createElement('div');
+  el.className = 'float-pts';
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// ====== DATA PAGE ======
+function renderData() {
+  // Stats
+  const grid = document.getElementById('stat-grid');
+  grid.innerHTML = `
+    <div class="stat-card"><div class="v">${state.totalMinutes}<span style="font-size:0.8rem;color:var(--text2);"> 分钟</span></div><div class="l">累计学习</div></div>
+    <div class="stat-card"><div class="v" style="color:var(--success);">${state.streak}<span style="font-size:0.8rem;"> 天</span></div><div class="l">连续打卡</div></div>
+    <div class="stat-card"><div class="v">${state.points}<span style="font-size:0.8rem;color:var(--text2);"> ⭐</span></div><div class="l">总积分</div></div>
+    <div class="stat-card"><div class="v">${state.totalTomatoes}<span style="font-size:0.8rem;color:var(--text2);"> 🍅</span></div><div class="l">完成番茄</div></div>`;
+
+  // Subject bars
+  const subjects = {'英语二':'var(--accent)','初等数学':'#764ba2','逻辑':'#4facfe','写作':'#f6d365'};
+  const maxMin = Math.max(1, ...Object.values(state.timerMinutes));
+  const bars = document.getElementById('subject-bars');
+  bars.innerHTML = Object.entries(state.timerMinutes).map(([s,m]) => `
+    <div class="bar-row">
+      <div class="label"><span>${s}</span><span style="color:var(--text2)">${m} 分钟</span></div>
+      <div class="bar"><div class="fill" style="width:${(m/maxMin*100)}%;background:${subjects[s]||'var(--accent)'};"></div></div>
+    </div>`).join('') || '<div style="color:var(--text3);font-size:0.8rem;">还没有学习记录</div>';
+
+  // Calendar
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const cal = document.getElementById('calendar');
+  const calLabel = document.getElementById('cal-month-label');
+  const year = state.calYear;
+  const month = state.calMonth;
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0,10);
+
+  calLabel.textContent = `${year}年 ${month+1}月`;
+
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+
+  // Collect daily minutes for this month
+  const maxMins = Math.max(1, ...Array.from({length:daysInMonth}, (_,d) => {
+    const k = `${year}-${String(month+1).padStart(2,'0')}-${String(d+1).padStart(2,'0')}`;
+    return state.dailyActivity[k]||0;
+  }));
+
+  function level(mins) {
+    if (mins <= 0) return 'l0';
+    if (mins <= 15) return 'l1';   // just checked in / quick session
+    if (mins <= 45) return 'l2';   // a solid session
+    if (mins <= 90) return 'l3';   // a great day
+    return 'l4';                    // an awesome day
+  }
+
+  let html = '<div class="dayh">一</div><div class="dayh">二</div><div class="dayh">三</div><div class="dayh">四</div><div class="dayh">五</div><div class="dayh">六</div><div class="dayh">日</div>';
+  const offset = firstDay === 0 ? 6 : firstDay - 1;
+  for (let i = 0; i < offset; i++) html += '<div class="day empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const mins = state.dailyActivity[key]||0;
+    const isToday = key === todayStr;
+    let cls = 'day ' + level(mins);
+    if (isToday) cls += ' today';
+    const tooltip = mins > 0 ? `<span class="tooltip">${mins}分钟</span>` : '';
+    html += `<div class="${cls}">${d}${tooltip}</div>`;
+  }
+  cal.innerHTML = html;
+}
+
+function prevMonth() {
+  if (state.calMonth === 0) { state.calMonth = 11; state.calYear--; }
+  else state.calMonth--;
+  renderCalendar();
+}
+function nextMonth() {
+  if (state.calMonth === 11) { state.calMonth = 0; state.calYear++; }
+  else state.calMonth++;
+  renderCalendar();
+}
+
+// ====== STORE PAGE ======
+function renderStore() {
+  const grid = document.getElementById('store-grid');
+  grid.innerHTML = state.prizes.map(p => `
+    <div class="store-item">
+      <div class="emoji">${p.emoji}</div>
+      <h3>${esc(p.name)}</h3>
+      <div class="desc">${esc(p.desc)}</div>
+      <div class="cost">${p.cost}<small> 积分</small></div>
+      <button class="btn btn-sm ${state.points>=p.cost?'':'btn-outline'}" 
+        ${state.points<p.cost?'disabled':''}
+        onclick="redeemPrize(${p.id})">${state.points>=p.cost?'兑换':'积分不足'}</button>
+    </div>`).join('');
+
+  // Redeem log
+  document.getElementById('redeem-log').innerHTML = state.redeemLog.length === 0
+    ? '<div style="color:var(--text3);">暂无兑换记录</div>'
+    : state.redeemLog.slice(-10).reverse().map(r => {
+        const p = state.prizes.find(pp => pp.id === r.prizeId);
+        return `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);">
+          ${p?p.emoji:''} ${p?p.name:'?'} · ${r.date} · ${r.fulfilled?'✅ 已兑现':'⏳ 待兑现'}
+        </div>`;
+      }).join('');
+}
+
+function redeemPrize(id) {
+  const p = state.prizes.find(pp => pp.id === id);
+  if (!p || state.points < p.cost) return;
+  if (!confirm(`确定用 ${p.cost} 积分兑换「${p.name}」吗？`)) return;
+  state.points -= p.cost;
+  state.redeemLog.push({prizeId:id,date:new Date().toISOString().slice(0,10),fulfilled:false});
+  saveState();
+  updatePointsDisplay();
+  renderStore();
+  showFloatPts('-' + p.cost);
+}
+
+// ====== SECRETS PAGE ======
+function renderSecrets() {
+  const list = document.getElementById('secret-list');
+  list.innerHTML = state.secrets.map(s => {
+    const unlocked = checkUnlock(s);
+    return `
+      <div class="secret-item ${unlocked?'':'locked'}">
+        <div class="ico">${unlocked?'🔓':'🔒'}</div>
+        <div class="body">
+          <strong>${esc(s.cond)}</strong>
+          <p>${unlocked ? esc(s.text) : '??????'}</p>
+          <div class="hint">${unlocked 
+            ? (s.media ? '已解锁 ✓  '+s.media : '已解锁 ✓')
+            : getUnlockHint(s)}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function checkUnlock(s) {
+  if (s.condType === 'streak') return state.streak >= s.condVal;
+  if (s.condType === 'points') return state.points >= s.condVal;
+  if (s.condType === 'countdown') {
+    const exam = new Date(state.examDate);
+    const diff = Math.ceil((exam - new Date()) / 86400000);
+    return diff <= s.condVal && diff > 0;
+  }
+  return false;
+}
+
+function getUnlockHint(s) {
+  if (s.condType === 'streak') return `还差 ${Math.max(0,s.condVal-state.streak)} 天解锁` + (s.media?' · '+s.media:'');
+  if (s.condType === 'points') return `还差 ${Math.max(0,s.condVal-state.points)} 积分` + (s.media?' · '+s.media:'');
+  if (s.condType === 'countdown') return `倒计时到达 ${s.condVal} 天时触发` + (s.media?' · '+s.media:'');
+  return '';
+}
+
+// ====== ADMIN ======
+function openAdmin() {
+  document.getElementById('admin-overlay').classList.add('on');
+  renderAdmin();
+  document.getElementById('exam-date-input').value = state.examDate;
+}
+
+function closeAdmin() {
+  document.getElementById('admin-overlay').classList.remove('on');
+  renderAll();
+}
+
+function renderAdmin() {
+  // Prizes
+  document.getElementById('admin-prizes').innerHTML = state.prizes.map(p => `
+    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:1.2rem;">${p.emoji}</span>
+      <span style="flex:1;"><strong>${esc(p.name)}</strong> — ${p.cost}积分</span>
+      <span style="cursor:pointer;color:var(--text2);" onclick="editPrize(${p.id})">✎</span>
+      <span style="cursor:pointer;color:var(--error);" onclick="deletePrize(${p.id})">🗑</span>
+    </div>`).join('');
+
+  // Secrets
+  document.getElementById('admin-secrets').innerHTML = state.secrets.map(s => `
+    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);">
+      <span style="flex:1;"><strong>${esc(s.cond)}</strong> — ${esc(s.text).slice(0,30)}...</span>
+      <span style="cursor:pointer;color:var(--text2);" onclick="editSecret(${s.id})">✎</span>
+      <span style="cursor:pointer;color:var(--error);" onclick="deleteSecret(${s.id})">🗑</span>
+    </div>`).join('');
+
+  // Greetings
+  document.getElementById('admin-greetings').innerHTML = state.greetings.map(g => `
+    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);">
+      <span style="flex:1;">${esc(g.text).slice(0,40)}...</span>
+      <span style="cursor:pointer;color:var(--text2);" onclick="editGreeting(${g.id})">✎</span>
+      <span style="cursor:pointer;color:var(--error);" onclick="deleteGreeting(${g.id})">🗑</span>
+    </div>`).join('');
+
+  // Redeem approvals
+  document.getElementById('admin-redeems').innerHTML = state.redeemLog.length === 0
+    ? '暂无兑换记录'
+    : state.redeemLog.slice(-20).reverse().map((r,i) => {
+        const idx = state.redeemLog.length - 1 - [...state.redeemLog].reverse().indexOf(r);
+        const p = state.prizes.find(pp => pp.id === r.prizeId);
+        return `<div style="padding:0.3rem 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <span>${p?p.emoji:''} ${p?p.name:'?'} · ${r.date}</span>
+          <span>
+            ${r.fulfilled 
+              ? '<span style="color:var(--success);">✅ 已兑现</span>'
+              : `<button class="btn btn-sm" onclick="fulfillRedeem(${idx})">标记兑现</button>`}
+          </span>
+        </div>`;
+      }).join('');
+}
+
+function addPrize() {
+  const maxId = state.prizes.reduce((m,p) => Math.max(m,p.id), 0);
+  const html = `
+    <h3>添加奖品</h3>
+    <div class="form-group"><label>图标emoji</label><input id="ap-emoji" value="🎁"></div>
+    <div class="form-group"><label>名称</label><input id="ap-name" placeholder="如：一顿火锅"></div>
+    <div class="form-group"><label>描述</label><input id="ap-desc" placeholder="简短描述"></div>
+    <div class="form-group"><label>积分</label><input id="ap-cost" type="number" value="500"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doAddPrize(${maxId+1})">添加</button>
+      <button class="btn btn-sm btn-outline" onclick="closePrizeModal()">取消</button>
+    </div>`;
+  document.getElementById('prize-modal-box').innerHTML = html;
+  document.getElementById('prize-modal').classList.add('on');
+}
+
+function doAddPrize(id) {
+  state.prizes.push({
+    id,
+    emoji: document.getElementById('ap-emoji').value||'🎁',
+    name: document.getElementById('ap-name').value.trim(),
+    desc: document.getElementById('ap-desc').value.trim(),
+    cost: parseInt(document.getElementById('ap-cost').value)||500
+  });
+  saveState();
+  closePrizeModal();
+  renderAdmin();
+}
+
+function editPrize(id) {
+  const p = state.prizes.find(pp => pp.id === id);
+  if (!p) return;
+  const html = `
+    <h3>编辑奖品</h3>
+    <div class="form-group"><label>图标emoji</label><input id="ep-emoji" value="${esc(p.emoji)}"></div>
+    <div class="form-group"><label>名称</label><input id="ep-name" value="${esc(p.name)}"></div>
+    <div class="form-group"><label>描述</label><input id="ep-desc" value="${esc(p.desc)}"></div>
+    <div class="form-group"><label>积分</label><input id="ep-cost" type="number" value="${p.cost}"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doEditPrize(${id})">保存</button>
+      <button class="btn btn-sm btn-outline" onclick="closePrizeModal()">取消</button>
+    </div>`;
+  document.getElementById('prize-modal-box').innerHTML = html;
+  document.getElementById('prize-modal').classList.add('on');
+}
+
+function doEditPrize(id) {
+  const p = state.prizes.find(pp => pp.id === id);
+  if (!p) return;
+  p.emoji = document.getElementById('ep-emoji').value||p.emoji;
+  p.name = document.getElementById('ep-name').value.trim();
+  p.desc = document.getElementById('ep-desc').value.trim();
+  p.cost = parseInt(document.getElementById('ep-cost').value)||p.cost;
+  saveState();
+  closePrizeModal();
+  renderAdmin();
+}
+
+function deletePrize(id) {
+  if (!confirm('确定删除这个奖品吗？')) return;
+  state.prizes = state.prizes.filter(p => p.id !== id);
+  saveState();
+  renderAdmin();
+}
+
+function addSecret() {
+  const maxId = state.secrets.reduce((m,s) => Math.max(m,s.id), 0);
+  const html = `
+    <h3>添加悄悄话</h3>
+    <div class="form-group"><label>解锁条件名称</label><input id="as-cond" placeholder="如：连续打卡14天"></div>
+    <div class="form-group"><label>条件类型</label>
+      <select id="as-type"><option value="streak">打卡天数</option><option value="points">积分</option><option value="countdown">倒计时节点</option></select>
+    </div>
+    <div class="form-group"><label>条件数值</label><input id="as-val" type="number" placeholder="如：14"></div>
+    <div class="form-group"><label>内容</label><textarea id="as-text" placeholder="写下你的悄悄话..."></textarea></div>
+    <div class="form-group"><label>媒体标记(可选)</label><input id="as-media" placeholder="如：📷 或 🎵"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doAddSecret(${maxId+1})">添加</button>
+      <button class="btn btn-sm btn-outline" onclick="closePrizeModal()">取消</button>
+    </div>`;
+  document.getElementById('prize-modal-box').innerHTML = html;
+  document.getElementById('prize-modal').classList.add('on');
+}
+
+function doAddSecret(id) {
+  state.secrets.push({
+    id,
+    cond: document.getElementById('as-cond').value.trim(),
+    condType: document.getElementById('as-type').value,
+    condVal: parseInt(document.getElementById('as-val').value)||0,
+    text: document.getElementById('as-text').value.trim(),
+    media: document.getElementById('as-media').value.trim()
+  });
+  saveState();
+  closePrizeModal();
+  renderAdmin();
+}
+
+function editSecret(id) {
+  const s = state.secrets.find(ss => ss.id === id);
+  if (!s) return;
+  const html = `
+    <h3>编辑悄悄话</h3>
+    <div class="form-group"><label>解锁条件名称</label><input id="es-cond" value="${esc(s.cond)}"></div>
+    <div class="form-group"><label>条件类型</label>
+      <select id="es-type">${['streak','points','countdown'].map(t => `<option value="${t}" ${s.condType===t?'selected':''}>${t==='streak'?'打卡天数':t==='points'?'积分':'倒计时节点'}</option>`).join('')}</select>
+    </div>
+    <div class="form-group"><label>条件数值</label><input id="es-val" type="number" value="${s.condVal}"></div>
+    <div class="form-group"><label>内容</label><textarea id="es-text">${esc(s.text)}</textarea></div>
+    <div class="form-group"><label>媒体标记(可选)</label><input id="es-media" value="${esc(s.media||'')}"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doEditSecret(${id})">保存</button>
+      <button class="btn btn-sm btn-outline" onclick="closePrizeModal()">取消</button>
+    </div>`;
+  document.getElementById('prize-modal-box').innerHTML = html;
+  document.getElementById('prize-modal').classList.add('on');
+}
+
+function doEditSecret(id) {
+  const s = state.secrets.find(ss => ss.id === id);
+  if (!s) return;
+  s.cond = document.getElementById('es-cond').value.trim();
+  s.condType = document.getElementById('es-type').value;
+  s.condVal = parseInt(document.getElementById('es-val').value)||0;
+  s.text = document.getElementById('es-text').value.trim();
+  s.media = document.getElementById('es-media').value.trim();
+  saveState();
+  closePrizeModal();
+  renderAdmin();
+}
+
+function deleteSecret(id) {
+  if (!confirm('确定删除这条悄悄话吗？')) return;
+  state.secrets = state.secrets.filter(s => s.id !== id);
+  saveState();
+  renderAdmin();
+}
+
+function addGreeting() {
+  const maxId = state.greetings.reduce((m,g) => Math.max(m,g.id), 0);
+  const html = `
+    <h3>添加问候语</h3>
+    <div class="form-group"><label>内容</label><textarea id="ag-text" placeholder="写一句每天的问候..."></textarea></div>
+    <div class="form-group"><label>署名</label><input id="ag-author" value="他今天想对你说的"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doAddGreeting(${maxId+1})">添加</button>
+      <button class="btn btn-sm btn-outline" onclick="closePrizeModal()">取消</button>
+    </div>`;
+  document.getElementById('prize-modal-box').innerHTML = html;
+  document.getElementById('prize-modal').classList.add('on');
+}
+
+function doAddGreeting(id) {
+  state.greetings.push({
+    id,
+    text: document.getElementById('ag-text').value.trim(),
+    author: document.getElementById('ag-author').value.trim()||'他今天想对你说的'
+  });
+  saveState();
+  closePrizeModal();
+  renderAdmin();
+}
+
+function editGreeting(id) {
+  const g = state.greetings.find(gg => gg.id === id);
+  if (!g) return;
+  const html = `
+    <h3>编辑问候语</h3>
+    <div class="form-group"><label>内容</label><textarea id="eg-text">${esc(g.text)}</textarea></div>
+    <div class="form-group"><label>署名</label><input id="eg-author" value="${esc(g.author)}"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doEditGreeting(${id})">保存</button>
+      <button class="btn btn-sm btn-outline" onclick="closePrizeModal()">取消</button>
+    </div>`;
+  document.getElementById('prize-modal-box').innerHTML = html;
+  document.getElementById('prize-modal').classList.add('on');
+}
+
+function doEditGreeting(id) {
+  const g = state.greetings.find(gg => gg.id === id);
+  if (!g) return;
+  g.text = document.getElementById('eg-text').value.trim();
+  g.author = document.getElementById('eg-author').value.trim()||g.author;
+  saveState();
+  closePrizeModal();
+  renderAdmin();
+}
+
+function deleteGreeting(id) {
+  if (!confirm('确定删除这条问候语吗？')) return;
+  state.greetings = state.greetings.filter(g => g.id !== id);
+  saveState();
+  renderAdmin();
+}
+
+function fulfillRedeem(idx) {
+  state.redeemLog[idx].fulfilled = true;
+  saveState();
+  renderAdmin();
+}
+
+function saveExamDate() {
+  state.examDate = document.getElementById('exam-date-input').value;
+  saveState();
+  updateCountdown();
+  alert('考试日期已保存！');
+}
+
+// ====== MODALS ======
+function closeModal() { document.getElementById('modal').classList.remove('on'); }
+function closePrizeModal() { document.getElementById('prize-modal').classList.remove('on'); }
+
+// ====== NAVIGATION ======
+function switchPage(name) {
+  const pages = {'today':0,'data':1,'store':2,'secrets':3};
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav .tab').forEach(t => t.classList.remove('active'));
+
+  const pageEl = document.getElementById('page-' + name);
+  if (pageEl) pageEl.classList.add('active');
+
+  const tabs = document.querySelectorAll('nav .tab');
+  for (const t of tabs) {
+    if (t.dataset.page === name) t.classList.add('active');
+  }
+
+  if (name === 'data') renderData();
+  if (name === 'store') renderStore();
+  if (name === 'secrets') renderSecrets();
+}
+
+// ====== STARTUP ======
+init();
+
+// Long-press admin: 3-second hold on bottom nav
+let pressTimer;
+document.querySelector('nav').addEventListener('pointerdown', () => {
+  pressTimer = setTimeout(() => { openAdmin(); }, 3000);
+});
+document.querySelector('nav').addEventListener('pointerup', () => { clearTimeout(pressTimer); });
+document.querySelector('nav').addEventListener('pointerleave', () => { clearTimeout(pressTimer); });
+</script>
+
+</body>
+</html>
