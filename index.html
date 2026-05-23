@@ -736,7 +736,7 @@ function renderToday() {
         }
         return `
           <div class="task-item ${itemClass}" style="border-left-color:${t.color||'var(--accent)'};">
-            <div class="check" ${t.done?'':'onclick="toggleTask('+i+')"'}>${t.done?'✓':'□'}</div>
+            <div class="check" ${t.done?'onclick="confirmUncheck('+i+')"':'onclick="toggleTask('+i+')"'}>${t.done?'✓':'□'}</div>
             <div class="info">
               <strong>${esc(t.name)} ${statusBadge}${t.preset && !t.done && state.activeTask!==i ? presetBadge : ''}</strong>
               <span>目标：${t.minutes}分钟 · ≈${t.minutes} 积分</span>
@@ -801,6 +801,29 @@ function toggleTask(i) {
   saveState();
   renderToday();
   checkAllDone();
+}
+
+let pendingUncheckIdx = -1;
+function confirmUncheck(i) {
+  pendingUncheckIdx = i;
+  const t = state.tasks[i];
+  document.getElementById('modal-box').innerHTML = `
+    <h3>取消完成？</h3>
+    <p style="color:var(--text2);font-size:0.85rem;margin-bottom:1rem;">「${esc(t.name)}」已经完成了，确定要撤销吗？</p>
+    <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+      <button class="btn btn-sm" style="background:var(--error);" onclick="doUncheck()">是，撤销</button>
+      <button class="btn btn-sm" style="font-weight:700;border:2px solid var(--accent);color:var(--accent);background:transparent;" onclick="closeModal()">否</button>
+    </div>`;
+  document.getElementById('modal').classList.add('on');
+}
+
+function doUncheck() {
+  if (pendingUncheckIdx < 0) return;
+  state.tasks[pendingUncheckIdx].done = false;
+  pendingUncheckIdx = -1;
+  saveState();
+  closeModal();
+  renderToday();
 }
 
 function checkAllDone() {
