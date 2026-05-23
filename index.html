@@ -902,8 +902,9 @@ function finishTask(i) {
 }
 
 function doFinishTask(i) {
-  const mins = parseInt(document.getElementById('fm-mins').value) || state.tasks[i].minutes;
-  if (mins < 1) return alert('请输入有效的学习时间');
+  const raw = document.getElementById('fm-mins').value.trim();
+  const mins = parseInt(raw);
+  if (!raw || isNaN(mins) || mins < 1) return alert('请输入有效的学习时间（至少 1 分钟）');
   state.tasks[i].done = true;
   state.activeTask = -1;
   // Award points
