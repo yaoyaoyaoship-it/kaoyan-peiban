@@ -152,28 +152,15 @@ nav .tab .ico { font-size:1.4rem; display:block; margin-bottom:2px; }
 .secret-item .body p { color:var(--text2); font-size:0.8rem; margin:0.15rem 0; }
 .secret-item .body .hint { font-size:0.72rem; color:var(--text3); }
 
-/* timer */
-.timer-screen {
-  position:absolute; top:0; left:0; width:100%; height:100%;
-  background:var(--bg); z-index:20; display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  opacity:0; pointer-events:none; transition:opacity .25s;
+/* active task */
+.task-item.active { border-left-color:var(--warning)!important; background:rgba(255,159,10,0.06); }
+.task-item.active .info strong { color:var(--warning); }
+.task-item .task-badge {
+  display:inline-block; font-size:0.65rem; padding:0.15rem 0.5rem;
+  border-radius:10px; font-weight:600;
 }
-.timer-screen.on { opacity:1; pointer-events:auto; }
-.timer-screen .subject { color:var(--text2); font-size:0.85rem; margin-bottom:1rem; }
-.timer-screen .clock {
-  font-size:6rem; font-weight:200; letter-spacing:0.04em;
-  font-variant-numeric:tabular-nums; margin-bottom:0.5rem;
-}
-.timer-screen .progress-bar {
-  width:60%; max-width:300px; height:6px; background:var(--bg3);
-  border-radius:3px; overflow:hidden; margin-bottom:2rem;
-}
-.timer-screen .progress-bar .fill {
-  height:100%; background:var(--accent); border-radius:3px; transition:width .5s linear;
-}
-.timer-screen .btns { display:flex; gap:1rem; }
-.timer-screen .summary { font-size:0.78rem; color:var(--text2); margin-top:1.5rem; }
+.task-item .task-badge.active-badge { background:rgba(255,159,10,0.2); color:var(--warning); }
+.completed-label { color:var(--success); font-size:0.75rem; font-weight:600; }
 
 /* data */
 .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin-bottom:1rem; }
@@ -423,24 +410,6 @@ nav .tab .ico { font-size:1.4rem; display:block; margin-bottom:2px; }
   <div id="secret-list"></div>
 </div>
 
-<!-- ====== TIMER OVERLAY ====== -->
-<div class="timer-screen" id="timer-screen">
-  <div style="position:absolute;top:1rem;left:1rem;cursor:pointer;font-size:1.2rem;" onclick="closeTimer()">✕</div>
-  <div class="subject" id="timer-subject">英语二 · 阅读理解</div>
-  <div class="clock" id="timer-clock">25:00</div>
-  <div class="progress-bar"><div class="fill" id="timer-progress" style="width:0%"></div></div>
-  <div class="btns">
-    <button class="btn btn-danger" id="btn-pause" onclick="toggleTimer()">⏸ 暂停</button>
-    <button class="btn" style="background:var(--text2);" onclick="stopTimer()">⏹ 结束</button>
-  </div>
-  <div class="summary">
-    已学 <strong id="timer-elapsed">0</strong> 分钟 · 预计 <strong id="timer-pts">+0</strong> 积分
-    <div style="margin-top:0.5rem;">
-      <button class="btn btn-sm btn-outline" onclick="switchMode()" id="btn-mode">切换自由模式</button>
-    </div>
-  </div>
-</div>
-
 <!-- ====== ADMIN OVERLAY ====== -->
 <div class="admin-overlay" id="admin-overlay">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -562,13 +531,11 @@ let state = {
   calMonth: new Date().getMonth(),
   calYear: new Date().getFullYear(),
   checkedInDate: LS.get('checkedInDate',''), // '2026-05-22'
+  activeTask: -1, // index of currently active task
 };
 // Merge timerMinutes from old format
 let oldTM = LS.get('timerMinutes',{});
 state.timerMinutes = Object.keys(oldTM).length>0 ? oldTM : {};
-
-// Timer state
-let timerState = {running:false,remaining:25*60,total:25*60,pomodoro:true,subject:'',interval:null,elapsed:0};
 
 // ====== INIT ======
 function init() {
@@ -678,22 +645,37 @@ function renderToday() {
 
   // Tasks
   const list = document.getElementById('task-list');
+  const isActive = state.activeTask >= 0;
   list.innerHTML = state.tasks.length === 0
     ? '<div style="text-align:center;color:var(--text3);padding:2rem;">还没有任务，点「+ 添加」开始规划今天吧 ✨</div>'
-    : state.tasks.map((t,i) => `
-      <div class="task-item ${t.done?'done':''}" style="border-left-color:${t.color||'var(--accent)'};">
-        <div class="check" onclick="toggleTask(${i})">${t.done?'✓':'□'}</div>
-        <div class="info">
-          <strong>${esc(t.name)}</strong>
-          <span>目标：${t.minutes}分钟 · ≈${t.minutes} 积分</span>
-        </div>
-        ${t.done ? '' : `<button class="btn btn-sm" onclick="startTimer('${esc(t.name)}','${t.subject||''}')">开始</button>`}
-        <div class="actions" style="margin-left:0.5rem;">
-          <span class="edit" onclick="editTask(${i})">✎</span>
-          <span class="del" onclick="deleteTask(${i})">🗑</span>
-        </div>
-      </div>
-    `).join('');
+    : state.tasks.map((t,i) => {
+        let btnHtml = '';
+        let statusBadge = '';
+        let itemClass = '';
+        if (t.done) {
+          itemClass = 'done';
+          statusBadge = '<span class="completed-label">✓ 已完成</span>';
+        } else if (state.activeTask === i) {
+          itemClass = 'active';
+          statusBadge = '<span class="task-badge active-badge">⏳ 进行中</span>';
+          btnHtml = `<button class="btn btn-sm" style="background:var(--success);" onclick="finishTask(${i})">✓ 完成</button>`;
+        } else {
+          btnHtml = `<button class="btn btn-sm" onclick="activateTask(${i})" ${isActive?'disabled':''}>开始</button>`;
+        }
+        return `
+          <div class="task-item ${itemClass}" style="border-left-color:${t.color||'var(--accent)'};">
+            <div class="check" onclick="toggleTask(${i})">${t.done?'✓':'□'}</div>
+            <div class="info">
+              <strong>${esc(t.name)} ${statusBadge}</strong>
+              <span>目标：${t.minutes}分钟 · ≈${t.minutes} 积分</span>
+            </div>
+            ${t.done ? '' : btnHtml}
+            <div class="actions" style="margin-left:0.5rem;">
+              <span class="edit" onclick="editTask(${i})">✎</span>
+              <span class="del" onclick="deleteTask(${i})">🗑</span>
+            </div>
+          </div>`;
+      }).join('');
 
   renderCheckin();
   updatePointsDisplay();
@@ -832,135 +814,63 @@ function copyYesterday() {
   saveState();
   renderToday();
 }
-// ====== TIMER ======
-function startTimer(name, subject) {
-  timerState.subject = subject || name;
-  timerState.pomodoro = true;
-  timerState.total = 25 * 60;
-  timerState.remaining = 25 * 60;
-  timerState.elapsed = 0;
-  timerState.running = false;
-  document.getElementById('timer-subject').textContent = timerState.subject;
-  document.getElementById('timer-screen').classList.add('on');
-  document.getElementById('btn-mode').textContent = '切换自由模式';
-  updateTimerDisplay();
+// ====== TASK ACTIONS ======
+function activateTask(i) {
+  if (state.tasks[i].done) return;
+  state.activeTask = i;
+  saveState();
+  renderToday();
 }
 
-function closeTimer() {
-  if (timerState.running) {
-    if (!confirm('正在计时中，确定退出吗？已学时间仍会计算积分。')) return;
-  }
-  if (timerState.elapsed > 0) {
-    awardPoints(timerState.elapsed);
-  }
-  clearInterval(timerState.interval);
-  timerState.running = false;
-  document.getElementById('timer-screen').classList.remove('on');
+function finishTask(i) {
+  const t = state.tasks[i];
+  // Show modal to enter minutes
+  const html = `
+    <h3>✅ 任务完成</h3>
+    <p style="color:var(--text2);font-size:0.85rem;margin-bottom:1rem;">${esc(t.name)}</p>
+    <div class="form-group"><label>实际学习时长（分钟）</label>
+      <input id="fm-mins" type="number" value="${t.minutes}" min="1" max="600" autofocus>
+    </div>
+    <p style="color:var(--text2);font-size:0.75rem;margin-bottom:1rem;">📱 看看你的计时软件上跑了多久，填进来就行</p>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doFinishTask(${i})">确认完成</button>
+      <button class="btn btn-sm btn-outline" onclick="closeModal()">取消</button>
+    </div>`;
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal').classList.add('on');
+  // Focus the input
+  setTimeout(() => { const inp = document.getElementById('fm-mins'); if (inp) inp.focus(); }, 100);
+}
+
+function doFinishTask(i) {
+  const mins = parseInt(document.getElementById('fm-mins').value) || state.tasks[i].minutes;
+  if (mins < 1) return alert('请输入有效的学习时间');
+  state.tasks[i].done = true;
+  state.activeTask = -1;
+  // Award points
+  awardPoints(mins, state.tasks[i].subject);
+  saveState();
+  closeModal();
   renderToday();
   renderData();
+  showFloatPts('+' + mins);
+  checkAllDone();
 }
 
-function toggleTimer() {
-  if (timerState.running) {
-    clearInterval(timerState.interval);
-    timerState.running = false;
-    document.getElementById('btn-pause').textContent = '▶ 继续';
-    document.getElementById('btn-pause').style.background = 'var(--success)';
-  } else {
-    timerState.running = true;
-    document.getElementById('btn-pause').textContent = '⏸ 暂停';
-    document.getElementById('btn-pause').style.background = 'var(--error)';
-    timerState.interval = setInterval(tick, 1000);
-  }
-}
-
-function stopTimer() {
-  if (!confirm('确定结束计时吗？已学时间会结算积分。')) return;
-  clearInterval(timerState.interval);
-  timerState.running = false;
-  if (timerState.elapsed > 0) {
-    awardPoints(timerState.elapsed);
-  }
-  document.getElementById('timer-screen').classList.remove('on');
-  renderToday();
-  renderData();
-}
-
-function tick() {
-  timerState.remaining--;
-  timerState.elapsed++;
-  if (timerState.remaining <= 0) {
-    // Pomodoro complete
-    clearInterval(timerState.interval);
-    timerState.running = false;
-    state.totalTomatoes++;
-    awardPoints(timerState.elapsed);
-    showFloatPts('+'+timerState.elapsed);
-    // Auto restart next pomodoro or stop
-    if (confirm('🍅 一个番茄完成！+'+timerState.elapsed+'积分。再来一个吗？')) {
-      timerState.remaining = 25 * 60;
-      timerState.elapsed = 0;
-      updateTimerDisplay();
-      timerState.running = true;
-      document.getElementById('btn-pause').textContent = '⏸ 暂停';
-      document.getElementById('btn-pause').style.background = 'var(--error)';
-      timerState.interval = setInterval(tick, 1000);
-    } else {
-      document.getElementById('timer-screen').classList.remove('on');
-      renderToday();
-      renderData();
-    }
-  }
-  updateTimerDisplay();
-}
-
-function updateTimerDisplay() {
-  const m = Math.floor(timerState.remaining / 60);
-  const s = timerState.remaining % 60;
-  document.getElementById('timer-clock').textContent = 
-    String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-  const pct = timerState.total > 0 ? ((timerState.total - timerState.remaining) / timerState.total * 100) : 0;
-  document.getElementById('timer-progress').style.width = pct + '%';
-  document.getElementById('timer-elapsed').textContent = timerState.elapsed;
-  document.getElementById('timer-pts').textContent = '+' + timerState.elapsed;
-}
-
-function switchMode() {
-  if (timerState.running) {
-    clearInterval(timerState.interval);
-    timerState.running = false;
-  }
-  timerState.pomodoro = !timerState.pomodoro;
-  if (timerState.pomodoro) {
-    timerState.total = 25 * 60;
-    document.getElementById('btn-mode').textContent = '切换自由模式';
-  } else {
-    timerState.total = 9999 * 60; // essentially unlimited
-    document.getElementById('btn-mode').textContent = '切换番茄钟';
-  }
-  timerState.remaining = timerState.total;
-  timerState.elapsed = 0;
-  document.getElementById('btn-pause').textContent = '▶ 继续';
-  document.getElementById('btn-pause').style.background = 'var(--success)';
-  updateTimerDisplay();
-}
-
-function awardPoints(mins) {
+function awardPoints(mins, subject) {
   state.points += mins;
   state.totalMinutes += mins;
   // Track per subject
-  if (timerState.subject) {
-    state.timerMinutes[timerState.subject] = (state.timerMinutes[timerState.subject]||0) + mins;
+  if (subject) {
+    state.timerMinutes[subject] = (state.timerMinutes[subject]||0) + mins;
   }
   // Track daily activity for heatmap
   const today = new Date().toISOString().slice(0,10);
   state.dailyActivity[today] = (state.dailyActivity[today]||0) + mins;
-  // Mark matching task as done
-  const taskIdx = state.tasks.findIndex(t => t.subject === timerState.subject && !t.done);
-  if (taskIdx >= 0) state.tasks[taskIdx].done = true;
-  saveState();
-  updatePointsDisplay();
 }
+
+// Remove old timerState
+// timerState variable removed — no longer needed
 
 function showFloatPts(text) {
   const el = document.createElement('div');
