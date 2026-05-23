@@ -86,7 +86,7 @@ nav .tab .ico { font-size:1.4rem; display:block; margin-bottom:2px; }
   border-radius:6px; display:flex; align-items:center; justify-content:center;
   flex-shrink:0; cursor:pointer; font-size:0.7rem; color:var(--text3);
 }
-.task-item.done .check { background:var(--success); border-color:var(--success); color:#fff; }
+.task-item.done .check { background:var(--success); border-color:var(--success); color:#fff; cursor:default; }
 .task-item .info { flex:1; }
 .task-item .info strong { font-size:0.9rem; display:block; }
 .task-item .info span { color:var(--text2); font-size:0.75rem; }
@@ -736,7 +736,7 @@ function renderToday() {
         }
         return `
           <div class="task-item ${itemClass}" style="border-left-color:${t.color||'var(--accent)'};">
-            <div class="check" onclick="toggleTask(${i})">${t.done?'✓':'□'}</div>
+            <div class="check" ${t.done?'':'onclick="toggleTask('+i+')"'}>${t.done?'✓':'□'}</div>
             <div class="info">
               <strong>${esc(t.name)} ${statusBadge}${t.preset && !t.done && state.activeTask!==i ? presetBadge : ''}</strong>
               <span>目标：${t.minutes}分钟 · ≈${t.minutes} 积分</span>
