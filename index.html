@@ -473,6 +473,12 @@ nav .tab .ico { font-size:1.4rem; display:block; margin-bottom:2px; }
   </div>
 
   <div style="margin-bottom:1.5rem;">
+    <strong style="font-size:0.9rem;">📌 常驻任务</strong>
+    <div id="admin-presets" style="margin-top:0.5rem;"></div>
+    <button class="btn btn-sm btn-outline" onclick="addPreset()" style="margin-top:0.5rem;">+ 添加常驻</button>
+  </div>
+
+  <div style="margin-bottom:1.5rem;">
     <strong style="font-size:0.9rem;">🌅 问候语管理</strong>
     <div id="admin-greetings" style="margin-top:0.5rem;"></div>
     <button class="btn btn-sm btn-outline" onclick="addGreeting()" style="margin-top:0.5rem;">+ 添加问候语</button>
@@ -560,6 +566,11 @@ const DEFAULT_GREETINGS = [
   {id:10,text:'老婆，考研这条路上你不孤单。有我在。',author:'他今天想对你说的'},
 ];
 
+const DEFAULT_TASK_PRESETS = [
+  {id:1,name:'背单词 · 每日必做',subject:'英语二',minutes:30,color:'#4facfe'},
+  {id:2,name:'运动 · 保持健康',subject:'其他',minutes:30,color:'#34c759'},
+];
+
 // State
 let state = {
   points: LS.get('points',0),
@@ -579,6 +590,7 @@ let state = {
   calYear: new Date().getFullYear(),
   checkedInDate: LS.get('checkedInDate',''), // '2026-05-22'
   activeTask: -1, // index of currently active task
+  taskPresets: LS.get('taskPresets',[...DEFAULT_TASK_PRESETS]),
 };
 // Merge timerMinutes from old format
 let oldTM = LS.get('timerMinutes',{});
@@ -605,6 +617,8 @@ function init() {
   }
 
   renderAll();
+  injectPresets();
+  renderToday();
   updateCountdown();
   setInterval(updateCountdown, 60000);
 
@@ -628,6 +642,7 @@ function saveState() {
   LS.set('timerMinutes',state.timerMinutes);
   LS.set('dailyActivity',state.dailyActivity);
   LS.set('checkedInDate',state.checkedInDate);
+  LS.set('taskPresets',state.taskPresets);
 }
 
 let lastDate = new Date().toISOString().slice(0,10);
@@ -639,9 +654,18 @@ function checkMidnightReset() {
     lastDate = d;
     // Reset tasks for new day
     state.tasks = state.tasks.map(t => ({...t, done:false}));
+    injectPresets();
     saveState();
     renderToday();
   }
+}
+
+function injectPresets() {
+  state.taskPresets.forEach(p => {
+    if (!state.tasks.some(t => t.name === p.name)) {
+      state.tasks.unshift({name:p.name,subject:p.subject,minutes:p.minutes,done:false,color:p.color,preset:true});
+    }
+  });
 }
 
 // ====== COUNTDOWN ======
@@ -699,6 +723,7 @@ function renderToday() {
         let btnHtml = '';
         let statusBadge = '';
         let itemClass = '';
+        const presetBadge = t.preset ? ' <span style="font-size:0.6rem;color:var(--text3);background:var(--bg3);padding:0.1rem 0.4rem;border-radius:8px;">📌 常驻</span>' : '';
         if (t.done) {
           itemClass = 'done';
           statusBadge = '<span class="completed-label">✓ 已完成</span>';
@@ -713,7 +738,7 @@ function renderToday() {
           <div class="task-item ${itemClass}" style="border-left-color:${t.color||'var(--accent)'};">
             <div class="check" onclick="toggleTask(${i})">${t.done?'✓':'□'}</div>
             <div class="info">
-              <strong>${esc(t.name)} ${statusBadge}</strong>
+              <strong>${esc(t.name)} ${statusBadge}${t.preset && !t.done && state.activeTask!==i ? presetBadge : ''}</strong>
               <span>目标：${t.minutes}分钟 · ≈${t.minutes} 积分</span>
             </div>
             ${t.done ? '' : btnHtml}
@@ -1168,6 +1193,14 @@ function renderAdmin() {
       <span style="cursor:pointer;color:var(--error);" onclick="deleteGreeting(${g.id})">🗑</span>
     </div>`).join('');
 
+  // Task presets
+  document.getElementById('admin-presets').innerHTML = state.taskPresets.map(p => `
+    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);">
+      <span style="flex:1;"><strong>${esc(p.name)}</strong> — ${p.subject} · ${p.minutes}分钟</span>
+      <span style="cursor:pointer;color:var(--text2);" onclick="editPreset(${p.id})">✎</span>
+      <span style="cursor:pointer;color:var(--error);" onclick="deletePreset(${p.id})">🗑</span>
+    </div>`).join('');
+
   // Redeem approvals
   document.getElementById('admin-redeems').innerHTML = state.redeemLog.length === 0
     ? '暂无兑换记录'
@@ -1325,6 +1358,70 @@ function deleteAchievement(id) {
   state.achievements = state.achievements.filter(s => s.id !== id);
   saveState();
   renderAdmin();
+}
+
+// ====== TASK PRESET ADMIN ======
+function addPreset() {
+  const maxId = state.taskPresets.reduce((m,p) => Math.max(m,p.id), 0);
+  const html = `
+    <h3>添加常驻任务</h3>
+    <div class="form-group"><label>任务名称</label><input id="ap-name" placeholder="如：背单词 · 每日必做"></div>
+    <div class="form-group"><label>科目</label>
+      <select id="ap-subject"><option value="英语二">英语二</option><option value="初等数学">初等数学</option><option value="逻辑">逻辑</option><option value="写作">写作</option><option value="其他">其他</option></select>
+    </div>
+    <div class="form-group"><label>预计时长（分钟）</label><input id="ap-mins" type="number" value="30"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doAddPreset(${maxId+1})">添加</button>
+      <button class="btn btn-sm btn-outline" onclick="closePrizeModal()">取消</button>
+    </div>`;
+  document.getElementById('prize-modal-box').innerHTML = html;
+  document.getElementById('prize-modal').classList.add('on');
+}
+
+function doAddPreset(id) {
+  const subjects = {'英语二':'var(--accent)','初等数学':'#764ba2','逻辑':'#4facfe','写作':'#f6d365','其他':'#34c759'};
+  const subject = document.getElementById('ap-subject').value;
+  state.taskPresets.push({
+    id, name: document.getElementById('ap-name').value.trim(),
+    subject, minutes: parseInt(document.getElementById('ap-mins').value)||30,
+    color: subjects[subject]||'var(--accent)'
+  });
+  saveState(); closePrizeModal(); renderAdmin();
+}
+
+function editPreset(id) {
+  const p = state.taskPresets.find(pp => pp.id === id);
+  if (!p) return;
+  const html = `
+    <h3>编辑常驻任务</h3>
+    <div class="form-group"><label>任务名称</label><input id="ep-name" value="${esc(p.name)}"></div>
+    <div class="form-group"><label>科目</label>
+      <select id="ep-subject">${['英语二','初等数学','逻辑','写作','其他'].map(s => `<option value="${s}" ${p.subject===s?'selected':''}>${s}</option>`).join('')}</select>
+    </div>
+    <div class="form-group"><label>预计时长（分钟）</label><input id="ep-mins" type="number" value="${p.minutes}"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm" onclick="doEditPreset(${id})">保存</button>
+      <button class="btn btn-sm btn-outline" onclick="closePrizeModal()">取消</button>
+    </div>`;
+  document.getElementById('prize-modal-box').innerHTML = html;
+  document.getElementById('prize-modal').classList.add('on');
+}
+
+function doEditPreset(id) {
+  const p = state.taskPresets.find(pp => pp.id === id);
+  if (!p) return;
+  const subjects = {'英语二':'var(--accent)','初等数学':'#764ba2','逻辑':'#4facfe','写作':'#f6d365','其他':'#34c759'};
+  const subject = document.getElementById('ep-subject').value;
+  p.name = document.getElementById('ep-name').value.trim();
+  p.subject = subject; p.minutes = parseInt(document.getElementById('ep-mins').value)||30;
+  p.color = subjects[subject]||'var(--accent)';
+  saveState(); closePrizeModal(); renderAdmin();
+}
+
+function deletePreset(id) {
+  if (!confirm('确定删除这个常驻任务吗？')) return;
+  state.taskPresets = state.taskPresets.filter(p => p.id !== id);
+  saveState(); renderAdmin();
 }
 
 function addGreeting() {
